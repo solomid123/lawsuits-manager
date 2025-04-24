@@ -1,6 +1,5 @@
 "use client"
 
-import DashboardLayout from "./dashboard-layout"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Briefcase, Calendar, Users, ChevronDown, ChevronUp } from "lucide-react"
 import { formatDistanceToNow } from "date-fns"
@@ -17,6 +16,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { format, addDays, subDays, isToday, startOfWeek, endOfWeek, isSameDay, parseISO } from "date-fns"
 import { ar } from "date-fns/locale"
+import DashboardLayout from "./dashboard-layout"
 
 // Define types for our data
 type Session = {
@@ -202,100 +202,100 @@ function Dashboard() {
       date: sessionDate,
       time: format(sessionDate, 'HH:mm'),
       type: 'session',
-      caseTitle: session.cases?.title,
       courtName: session.cases?.courts?.name
     };
   });
   
-  // Handle week navigation
+  // Navigation functions for calendar
   const previousWeek = () => {
-    setCurrentWeekStart(prevStart => subDays(prevStart, 7));
+    setCurrentWeekStart(prev => subDays(prev, 7));
   };
   
   const nextWeek = () => {
-    setCurrentWeekStart(prevStart => addDays(prevStart, 7));
+    setCurrentWeekStart(prev => addDays(prev, 7));
   };
   
-  // Helper function to get events for a specific day
+  // Get events for a specific day
   const getEventsForDay = (day: Date) => {
     return calendarEvents.filter(event => isSameDay(event.date, day));
   };
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-right">لوحة التحكم</h1>
-
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+    <div className="space-y-4">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
-          <CardContent className="flex flex-row items-center justify-between p-6">
-            <div className="space-y-1">
-              <p className="text-sm text-muted-foreground">الجلسات</p>
-              <p className="text-3xl font-bold">{isLoading ? "..." : totalSessionsCount}</p>
-            </div>
-            <div className="h-12 w-12 rounded-full bg-primary/20 flex items-center justify-center">
-              <Calendar className="h-6 w-6 text-primary" />
-            </div>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">
+              إجمالي العملاء
+            </CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{isLoading ? '...' : clientCount}</div>
+            <p className="text-xs text-muted-foreground">
+              عميل
+            </p>
           </CardContent>
         </Card>
-
         <Card>
-          <CardContent className="flex flex-row items-center justify-between p-6">
-            <div className="space-y-1">
-              <p className="text-sm text-muted-foreground">العملاء</p>
-              <p className="text-3xl font-bold">{isLoading ? "..." : clientCount}</p>
-            </div>
-            <div className="h-12 w-12 rounded-full bg-yellow-100 flex items-center justify-center">
-              <Users className="h-6 w-6 text-yellow-600" />
-            </div>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">
+              القضايا النشطة
+            </CardTitle>
+            <Briefcase className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{isLoading ? '...' : activeCaseCount}</div>
+            <p className="text-xs text-muted-foreground">
+              قضية
+            </p>
           </CardContent>
         </Card>
-
         <Card>
-          <CardContent className="flex flex-row items-center justify-between p-6">
-            <div className="space-y-1">
-              <p className="text-sm text-muted-foreground">جلسات اليوم</p>
-              <p className="text-3xl font-bold">{isLoading ? "..." : todaySessionsCount}</p>
-            </div>
-            <div className="h-12 w-12 rounded-full bg-green-100 flex items-center justify-center">
-              <Calendar className="h-6 w-6 text-green-600" />
-            </div>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">
+              جلسات اليوم
+            </CardTitle>
+            <Calendar className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{isLoading ? '...' : todaySessionsCount}</div>
+            <p className="text-xs text-muted-foreground">
+              جلسة
+            </p>
           </CardContent>
         </Card>
-
         <Card>
-          <CardContent className="flex flex-row items-center justify-between p-6">
-            <div className="space-y-1">
-              <p className="text-sm text-muted-foreground">القضايا النشطة</p>
-              <p className="text-3xl font-bold">{isLoading ? "..." : activeCaseCount}</p>
-            </div>
-            <div className="h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center">
-              <Briefcase className="h-6 w-6 text-blue-600" />
-            </div>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">
+              إجمالي الجلسات
+            </CardTitle>
+            <Calendar className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{isLoading ? '...' : totalSessionsCount}</div>
+            <p className="text-xs text-muted-foreground">
+              جلسة
+            </p>
           </CardContent>
         </Card>
       </div>
       
-      {/* Weekly Calendar */}
+      {/* Simple week calendar */}
       <Card>
-        <CardHeader className="pb-2">
-          <div className="flex items-center justify-between">
-            <CardTitle>جلسات الأسبوع</CardTitle>
-            <div className="flex space-x-2 space-x-reverse">
-              <Button variant="outline" size="sm" onClick={previousWeek}>
-                الأسبوع السابق
-              </Button>
-              <Button variant="outline" size="sm" onClick={nextWeek}>
-                الأسبوع القادم
-              </Button>
-            </div>
+        <CardHeader className="flex flex-row items-center justify-between pb-2">
+          <CardTitle>جدول الأسبوع</CardTitle>
+          <div className="flex space-x-2">
+            <Button variant="outline" size="sm" onClick={previousWeek}>&larr;</Button>
+            <Button variant="outline" size="sm" onClick={nextWeek}>&rarr;</Button>
           </div>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-7 gap-2 overflow-auto">
+          <div className="grid grid-cols-7 gap-2">
             {weekDays.map((day) => (
-              <WeekDayComponent
-                key={day.toISOString()}
-                day={day}
+              <WeekDayComponent 
+                key={day.toString()} 
+                day={day} 
                 events={getEventsForDay(day)}
                 isCurrentDay={isToday(day)}
               />
@@ -303,88 +303,112 @@ function Dashboard() {
           </div>
         </CardContent>
       </Card>
-
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-        <Card>
-          <CardHeader className="pb-2 flex flex-row justify-between items-center">
-            <CardTitle className="text-lg">آخر النشاطات</CardTitle>
-            {recentActivities.length > 2 && (
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                onClick={() => setActivitiesExpanded(!activitiesExpanded)}
-                className="h-8 w-8 p-0"
-              >
-                {activitiesExpanded ? (
-                  <ChevronUp className="h-4 w-4" />
-                ) : (
-                  <ChevronDown className="h-4 w-4" />
-                )}
-              </Button>
-            )}
+      
+      <div className="grid gap-4 md:grid-cols-2">
+        {/* Recent Activities */}
+        <Card className="col-span-1">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle>آخر النشاطات</CardTitle>
+            <Button 
+              variant="ghost" 
+              size="sm"
+              onClick={() => setActivitiesExpanded(!activitiesExpanded)}
+            >
+              {activitiesExpanded ? (
+                <ChevronUp className="h-4 w-4" />
+              ) : (
+                <ChevronDown className="h-4 w-4" />
+              )}
+            </Button>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent>
             {isActivitiesLoading ? (
-              <p className="text-center text-muted-foreground">جاري التحميل...</p>
-            ) : displayedActivities.length > 0 ? (
-              displayedActivities.map((activity) => (
-                <div key={activity.id} className="flex items-start gap-4">
-                  <div className="text-xs text-muted-foreground">
-                    {formatDistanceToNow(new Date(activity.created_at), {
-                      addSuffix: true
-                    })}
-                  </div>
-                  <div>
-                    <p className="font-medium">{activity.description}</p>
-                    <p className="text-sm text-muted-foreground">{activity.entity_type}</p>
-                  </div>
-                </div>
-              ))
+              <div className="flex justify-center py-4">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+              </div>
+            ) : recentActivities.length === 0 ? (
+              <p className="text-center text-sm text-muted-foreground py-4">لا توجد نشاطات حديثة</p>
             ) : (
-              <p className="text-center text-muted-foreground">لا توجد نشاطات حديثة</p>
+              <div className="space-y-4">
+                {displayedActivities.map((activity) => (
+                  <div key={activity.id} className="flex items-start space-x-4 rtl:space-x-reverse">
+                    <div className="w-2 h-2 mt-1 rounded-full bg-primary"></div>
+                    <div className="space-y-1">
+                      <p className="text-sm">
+                        {activity.description}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {formatDistanceToNow(new Date(activity.created_at), { addSuffix: true })}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+                {!activitiesExpanded && recentActivities.length > 2 && (
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="w-full text-xs"
+                    onClick={() => setActivitiesExpanded(true)}
+                  >
+                    عرض المزيد
+                  </Button>
+                )}
+              </div>
             )}
           </CardContent>
         </Card>
-
-        <Card>
-          <CardHeader className="pb-2 flex flex-row justify-between items-center">
-            <CardTitle className="text-lg">الجلسات القادمة</CardTitle>
-            {upcomingSessions.length > 2 && (
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                onClick={() => setSessionsExpanded(!sessionsExpanded)}
-                className="h-8 w-8 p-0"
-              >
-                {sessionsExpanded ? (
-                  <ChevronUp className="h-4 w-4" />
-                ) : (
-                  <ChevronDown className="h-4 w-4" />
-                )}
-              </Button>
-            )}
+        
+        {/* Upcoming Sessions */}
+        <Card className="col-span-1">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle>الجلسات القادمة</CardTitle>
+            <Button 
+              variant="ghost" 
+              size="sm"
+              onClick={() => setSessionsExpanded(!sessionsExpanded)}
+            >
+              {sessionsExpanded ? (
+                <ChevronUp className="h-4 w-4" />
+              ) : (
+                <ChevronDown className="h-4 w-4" />
+              )}
+            </Button>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent>
             {isSessionsLoading ? (
-              <p className="text-center text-muted-foreground">جاري التحميل...</p>
-            ) : displayedSessions.length > 0 ? (
-              displayedSessions.map((session) => {
-                // Parse the date, handling possible date format issues
-                const sessionDate = new Date(session.session_date);
-                return (
-                  <div key={session.id} className="flex items-start gap-4">
-                    <div className="text-xs text-muted-foreground">
-                      {format(sessionDate, 'dd/MM/yyyy')}
-                    </div>
-                    <div>
-                      <p className="font-medium">{session.cases?.title}</p>
-                      <p className="text-sm text-muted-foreground">{session.cases?.courts?.name}</p>
-                    </div>
-                  </div>
-                );
-              })
+              <div className="flex justify-center py-4">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+              </div>
+            ) : upcomingSessions.length === 0 ? (
+              <p className="text-center text-sm text-muted-foreground py-4">لا توجد جلسات قادمة</p>
             ) : (
-              <p className="text-center text-muted-foreground">لا توجد جلسات قادمة</p>
+              <div className="space-y-4">
+                {displayedSessions.map((session) => {
+                  const sessionDate = parseISO(session.session_date);
+                  return (
+                    <div key={session.id} className="flex items-start space-x-4 rtl:space-x-reverse">
+                      <div className="min-w-10 text-center">
+                        <p className="text-sm font-medium">{format(sessionDate, 'd MMM', { locale: ar })}</p>
+                        <p className="text-xs">{format(sessionDate, 'HH:mm')}</p>
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-sm font-medium">{session.cases?.title || "جلسة"}</p>
+                        <p className="text-xs text-muted-foreground">{session.cases?.courts?.name || "محكمة"}</p>
+                      </div>
+                    </div>
+                  );
+                })}
+                {!sessionsExpanded && upcomingSessions.length > 2 && (
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="w-full text-xs"
+                    onClick={() => setSessionsExpanded(true)}
+                  >
+                    عرض المزيد
+                  </Button>
+                )}
+              </div>
             )}
           </CardContent>
         </Card>
@@ -393,7 +417,7 @@ function Dashboard() {
   )
 }
 
-export default function RootPage() {
+export default function HomePage() {
   return (
     <DashboardLayout>
       <Dashboard />
