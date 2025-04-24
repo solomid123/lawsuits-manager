@@ -1,11 +1,9 @@
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 
-export async function middleware(req: NextRequest) {
-  const res = NextResponse.next()
-  
-  // Always allow access for now - this is a temporary solution to make the deployment work
-  return res
+export function middleware(req: NextRequest) {
+  // Simply proceed with the request - no route protection for now
+  return NextResponse.next()
 }
 
 export const config = {
