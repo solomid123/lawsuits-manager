@@ -23,6 +23,9 @@ if (typeof window !== 'undefined') {
   }
 }
 
+// Export the supabase client so it can be imported elsewhere
+export { supabaseClient };
+
 // Helper functions for data fetching
 
 // Client count

@@ -78,4 +78,5 @@ export const db = {
   }
 }
 
-export default supabaseClient 
+// Export the supabaseClient
+export { supabaseClient } 
