@@ -1,7 +1,6 @@
 "use client"
 
-import { useState } from "react"
-import { useActionState } from "react" // تصحيح الاستيراد من react بدلاً من react-dom
+import { useState, useEffect } from "react"
 import { signIn } from "@/app/actions/auth-actions"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -9,19 +8,60 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { AlertCircle } from "lucide-react"
-
-const initialState = {
-  error: null,
-}
+import { useRouter } from "next/navigation"
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 
 export default function LoginPage() {
-  const [state, formAction] = useActionState(signIn, initialState)
+  const [error, setError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const router = useRouter()
+  const supabase = createClientComponentClient()
+
+  // Check authentication status on initial load
+  useEffect(() => {
+    const checkAuth = async () => {
+      const { data } = await supabase.auth.getSession()
+      if (data.session) {
+        router.push("/")
+      }
+    }
+    
+    checkAuth()
+  }, [supabase, router])
 
   const handleSubmit = async (formData: FormData) => {
     setIsSubmitting(true)
-    await formAction(formData)
-    setIsSubmitting(false)
+    setError(null)
+    
+    try {
+      const email = formData.get("email") as string
+      const password = formData.get("password") as string
+      
+      if (!email || !password) {
+        setError("البريد الإلكتروني وكلمة المرور مطلوبان")
+        return
+      }
+      
+      // First call the server action to log the activity
+      const result = await signIn({}, formData)
+      
+      if (result.error) {
+        setError(result.error)
+        return
+      }
+      
+      // If server action succeeded, manually check auth session
+      const { data } = await supabase.auth.getSession()
+      if (data.session) {
+        // Force navigation to dashboard
+        router.push("/")
+      }
+    } catch (err) {
+      console.error("Login error:", err)
+      setError("حدث خطأ أثناء تسجيل الدخول. يرجى المحاولة مرة أخرى.")
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -32,10 +72,10 @@ export default function LoginPage() {
           <CardDescription>أدخل بيانات الاعتماد الخاصة بك للوصول إلى نظام إدارة القضايا</CardDescription>
         </CardHeader>
         <CardContent>
-          {state?.error && (
+          {error && (
             <Alert variant="destructive" className="mb-4">
               <AlertCircle className="h-4 w-4" />
-              <AlertDescription>{state.error}</AlertDescription>
+              <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
           <form action={handleSubmit} className="space-y-4">

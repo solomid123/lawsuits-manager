@@ -2,7 +2,6 @@
 
 import { cookies } from "next/headers"
 import { createServerActionClient } from "@supabase/auth-helpers-nextjs"
-import { redirect } from "next/navigation"
 import { logActivity } from "@/lib/services/activity-service"
 
 export async function signIn(prevState: any, formData: FormData) {
@@ -39,7 +38,8 @@ export async function signIn(prevState: any, formData: FormData) {
     }
   }
 
-  redirect("/")
+  // Return success instead of redirecting
+  return { success: true }
 }
 
 export async function signOut() {
@@ -61,5 +61,7 @@ export async function signOut() {
   }
 
   await supabase.auth.signOut()
-  redirect("/login")
+  
+  // Return success instead of redirecting
+  return { success: true }
 }

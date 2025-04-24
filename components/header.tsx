@@ -12,9 +12,33 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { signOut } from "@/app/actions/auth-actions"
+import { useRouter } from "next/navigation"
+import { useState } from "react"
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 
 export default function Header() {
-  // Simplified header that doesn't depend on server data
+  const router = useRouter()
+  const [isLoggingOut, setIsLoggingOut] = useState(false)
+  const supabase = createClientComponentClient()
+  
+  const handleSignOut = async () => {
+    setIsLoggingOut(true)
+    try {
+      // Call server action for activity logging
+      await signOut()
+      
+      // Use client-side auth for immediate effect
+      await supabase.auth.signOut()
+      
+      // Force navigation to login page
+      router.push("/login")
+    } catch (error) {
+      console.error("Error signing out:", error)
+    } finally {
+      setIsLoggingOut(false)
+    }
+  }
+
   return (
     <header className="sticky top-0 z-10 flex h-16 items-center gap-4 border-b bg-background px-4">
       <div className="font-semibold">Lawsuits Manager</div>
@@ -32,12 +56,15 @@ export default function Header() {
           <DropdownMenuLabel>المستخدم</DropdownMenuLabel>
           <DropdownMenuLabel className="text-xs font-normal text-muted-foreground"></DropdownMenuLabel>
           <DropdownMenuSeparator />
-          <DropdownMenuItem>
-            <form action={signOut}>
-              <button type="submit" className="w-full text-right">
-                تسجيل الخروج
-              </button>
-            </form>
+          <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+            <button 
+              type="button" 
+              className="w-full text-right" 
+              onClick={handleSignOut}
+              disabled={isLoggingOut}
+            >
+              {isLoggingOut ? "جاري تسجيل الخروج..." : "تسجيل الخروج"}
+            </button>
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>

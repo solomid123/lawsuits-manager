@@ -27,6 +27,13 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
 
         const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
           setSession(session)
+          
+          // Immediately handle navigation based on auth state change
+          if (!session && pathname !== "/login") {
+            router.push("/login")
+          } else if (session && pathname === "/login") {
+            router.push("/")
+          }
         })
 
         return () => {
@@ -39,8 +46,9 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
     }
 
     getSession()
-  }, [supabase.auth])
+  }, [supabase.auth, pathname, router])
 
+  // Additional effect for pathname changes
   useEffect(() => {
     if (isLoading) return
 
