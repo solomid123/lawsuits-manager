@@ -118,35 +118,104 @@ export async function fetchRecentActivities(limit = 4) {
   return data || []
 }
 
-// Upcoming sessions
-export async function fetchUpcomingSessions(limit = 3) {
+// Correct query with proper foreign key relationships and filter for only future sessions
+export async function fetchUpcomingSessions(limit = 50) {
   if (!supabaseClient) return [];
 
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-
-  const { data, error } = await supabaseClient
-    .from("court_sessions")
-    .select(`
-      id, 
-      session_date,
-      cases (
+  try {
+    console.log("Starting upcoming court sessions fetch...");
+    
+    // Get current date to filter only future sessions
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayISOString = today.toISOString();
+    
+    console.log(`Filtering sessions from ${todayISOString} onwards`);
+    
+    // Query with proper relations and filter for only future sessions
+    const { data, error } = await supabaseClient
+      .from("court_sessions")
+      .select(`
         id,
-        title,
-        courts (
+        session_date,
+        session_time, 
+        case_id,
+        cases (
           id,
-          name
+          title,
+          client_id,
+          clients (
+            id,
+            first_name,
+            last_name,
+            company_name
+          )
         )
-      )
-    `)
-    .gte("session_date", today.toISOString())
-    .order("session_date", { ascending: true })
-    .limit(limit)
+      `)
+      .gte('session_date', todayISOString) // Only get sessions from today onwards
+      .order("session_date", { ascending: true });
 
-  if (error) {
-    console.error("Error fetching upcoming sessions:", error)
-    return []
+    if (error) {
+      console.error("Error fetching court sessions:", error);
+      return [];
+    }
+
+    console.log(`Fetched ${data?.length || 0} upcoming court sessions`);
+    
+    return data || [];
+  } catch (err) {
+    console.error("Error in fetchUpcomingSessions:", err);
+    return [];
   }
+}
 
-  return data || []
+// New function specifically for calendar that shows all sessions for the week
+export async function fetchCalendarSessions(startDate: Date, endDate: Date) {
+  if (!supabaseClient) return [];
+
+  try {
+    console.log("Starting calendar sessions fetch...");
+    
+    // Format dates for query
+    const startISOString = startDate.toISOString();
+    const endISOString = endDate.toISOString();
+    
+    console.log(`Fetching calendar sessions from ${startISOString} to ${endISOString}`);
+    
+    // Query with date range for the current week view
+    const { data, error } = await supabaseClient
+      .from("court_sessions")
+      .select(`
+        id,
+        session_date,
+        session_time, 
+        case_id,
+        cases (
+          id,
+          title,
+          client_id,
+          clients (
+            id,
+            first_name,
+            last_name,
+            company_name
+          )
+        )
+      `)
+      .gte('session_date', startISOString)
+      .lte('session_date', endISOString)
+      .order("session_date", { ascending: true });
+
+    if (error) {
+      console.error("Error fetching calendar sessions:", error);
+      return [];
+    }
+
+    console.log(`Fetched ${data?.length || 0} calendar sessions for the week`);
+    
+    return data || [];
+  } catch (err) {
+    console.error("Error in fetchCalendarSessions:", err);
+    return [];
+  }
 } 

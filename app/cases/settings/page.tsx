@@ -125,6 +125,9 @@ export default function CaseSettingsPage() {
                     <Switch 
                       id="sync-calendar" 
                       checked={true}
+                      onCheckedChange={() => {
+                        toast.success("تم تحديث إعدادات المزامنة");
+                      }}
                     />
                   </div>
                   <p className="text-sm text-muted-foreground">

@@ -79,18 +79,27 @@ function convertSessionToCalendarEvent(session: any): CalendarEvent {
   // Get case title from the nested case object
   const caseTitle = session.cases?.title || 'غير محدد';
   
+  // Determine the event type based on session_type
+  let eventType = "session"; // Default type
+  if (session.session_type) {
+    if (session.session_type.toLowerCase().includes('first')) {
+      eventType = "first";
+    } else if (session.session_type.toLowerCase().includes('appeal')) {
+      eventType = "appeal";
+    }
+  }
+  
   // Build the title with additional information if available
   let title = session.title || `جلسة - ${caseTitle}`;
-  if (session.session_type) {
-    title = `${title} (${session.session_type})`;
-  }
+  
+  // Don't append the session type in brackets as it will be shown with the badge
   
   return {
     id: `session-${session.id}`,
     title: title,
     start: sessionDate,
     end: endDate,
-    type: "session",
+    type: eventType,
     caseId: session.case_id?.toString(),
     caseName: caseTitle,
     location: session.location,
@@ -504,7 +513,9 @@ export default function CalendarPage() {
                       }`}>
                         {event.type === 'session' ? 'جلسة' :
                          event.type === 'milestone' ? 'مرحلة' :
-                         event.type === 'task' ? 'مهمة' : 'أخرى'}
+                         event.type === 'task' ? 'مهمة' : 
+                         event.type === 'first' ? 'أولى' :
+                         event.type === 'appeal' ? 'استئناف' : 'أخرى'}
                       </span>
                     </div>
                     <p className="text-sm text-muted-foreground mb-2">

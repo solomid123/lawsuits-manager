@@ -16,6 +16,12 @@ import { format } from "date-fns"
 import { ar } from "date-fns/locale"
 import { toast } from "sonner"
 import { getFileUrl } from "@/lib/supabase-file-upload"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 
 // Receipt categories for filtering
 const receiptCategories = [
@@ -74,6 +80,7 @@ export default function ReceiptsListPage() {
   const [selectedStatus, setSelectedStatus] = useState("all")
   const [sortColumn, setSortColumn] = useState("date")
   const [sortDirection, setSortDirection] = useState("desc")
+  const [updatingStatus, setUpdatingStatus] = useState<string | null>(null)
   
   const supabase = createClientComponentClient()
   
@@ -287,6 +294,37 @@ export default function ReceiptsListPage() {
     setPreviewUrl(null)
   }
   
+  // Handle status change
+  const handleStatusChange = async (receiptId: string, newStatus: "paid" | "pending" | "unpaid") => {
+    try {
+      setUpdatingStatus(receiptId)
+      
+      // Update the database
+      const { error } = await supabase
+        .from('receipts')
+        .update({ status: newStatus })
+        .eq('id', receiptId)
+      
+      if (error) throw error
+      
+      // Update local state
+      setReceipts(prev => prev.map(receipt => 
+        receipt.id === receiptId ? { ...receipt, status: newStatus } : receipt
+      ))
+      
+      setFilteredReceipts(prev => prev.map(receipt => 
+        receipt.id === receiptId ? { ...receipt, status: newStatus } : receipt
+      ))
+      
+      toast.success("تم تحديث حالة الإيصال بنجاح")
+    } catch (error) {
+      console.error('Error updating receipt status:', error)
+      toast.error("فشل في تحديث حالة الإيصال")
+    } finally {
+      setUpdatingStatus(null)
+    }
+  }
+  
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -444,12 +482,34 @@ export default function ReceiptsListPage() {
                       </TableCell>
                       <TableCell>
                         {receipt.status && (
-                          <Badge 
-                            className={receiptStatuses[receipt.status]?.color || ""}
-                            variant="outline"
-                          >
-                            {receiptStatuses[receipt.status]?.label || receipt.status}
-                          </Badge>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Badge
+                                className={`${receiptStatuses[receipt.status]?.color || ""} ${updatingStatus === receipt.id ? 'opacity-50' : ''} cursor-pointer`}
+                                variant="outline"
+                              >
+                                {updatingStatus === receipt.id ? (
+                                  <span className="inline-block animate-spin mr-1">⏳</span>
+                                ) : null}
+                                {receiptStatuses[receipt.status]?.label || receipt.status}
+                              </Badge>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              {Object.entries(receiptStatuses).map(([value, { label }]) => (
+                                <DropdownMenuItem
+                                  key={value}
+                                  className={`${receipt.status === value ? 'font-medium' : ''}`}
+                                  onClick={() => {
+                                    if (receipt.status !== value) {
+                                      handleStatusChange(receipt.id, value as "paid" | "pending" | "unpaid");
+                                    }
+                                  }}
+                                >
+                                  {label}
+                                </DropdownMenuItem>
+                              ))}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         )}
                       </TableCell>
                       <TableCell>

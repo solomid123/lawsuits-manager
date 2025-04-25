@@ -64,7 +64,7 @@ export default function Header() {
               disabled={isLoggingOut}
             >
               {isLoggingOut ? "جاري تسجيل الخروج..." : "تسجيل الخروج"}
-            </button>
+              </button>
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>

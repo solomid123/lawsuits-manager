@@ -60,7 +60,7 @@ export default function LoginPage() {
       console.error("Login error:", err)
       setError("حدث خطأ أثناء تسجيل الدخول. يرجى المحاولة مرة أخرى.")
     } finally {
-      setIsSubmitting(false)
+    setIsSubmitting(false)
     }
   }
 

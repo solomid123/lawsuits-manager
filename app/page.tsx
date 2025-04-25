@@ -11,21 +11,34 @@ import {
   fetchTodaySessionsCount,
   fetchTotalSessionsCount,
   fetchRecentActivities,
-  fetchUpcomingSessions
+  fetchUpcomingSessions,
+  fetchCalendarSessions
 } from "@/lib/supabase-client"
 import { Button } from "@/components/ui/button"
 import { format, addDays, subDays, isToday, startOfWeek, endOfWeek, isSameDay, parseISO } from "date-fns"
 import { ar } from "date-fns/locale"
 import DashboardLayout from "./dashboard-layout"
+import { supabaseClient } from "@/lib/supabase-client"
 
 // Define types for our data
 type Session = {
   id: string;
   session_date: string;
-  cases?: {
+  session_time?: string;
+  case_id?: string;
+  cases: {
+    id?: string;
     title?: string;
+    court_id?: string;
+    client_id?: string;
     courts?: {
+      id?: string;
       name?: string;
+    };
+    clients?: {
+      id?: string;
+      name?: string;
+      company_name?: string;
     };
   };
 };
@@ -87,30 +100,9 @@ function Dashboard() {
   const [activitiesExpanded, setActivitiesExpanded] = useState(false);
   const [sessionsExpanded, setSessionsExpanded] = useState(false);
   const [currentWeekStart, setCurrentWeekStart] = useState<Date>(() => startOfWeek(new Date(), { weekStartsOn: 0 }));
-
-  // Add debug effect
-  useEffect(() => {
-    // Debug the upcoming sessions directly
-    fetchUpcomingSessions().then(data => {
-      console.log('Direct fetch of upcoming sessions data:', data);
-      // Check the shape of the data
-      if (data && data.length > 0) {
-        console.log('First session:', data[0]);
-        console.log('Cases property type:', data[0].cases ? (Array.isArray(data[0].cases) ? 'array' : 'object') : 'undefined');
-        if (data[0].cases) {
-          if (Array.isArray(data[0].cases) && data[0].cases.length > 0) {
-            console.log('First case in array:', data[0].cases[0]);
-            console.log('Courts property in first case:', data[0].cases[0].courts);
-          } else if (typeof data[0].cases === 'object') {
-            console.log('Case object:', data[0].cases);
-            console.log('Courts property in case object:', (data[0].cases as any).courts);
-          }
-        }
-      }
-    }).catch(err => {
-      console.error('Error fetching upcoming sessions directly:', err);
-    });
-  }, []);
+  
+  // Calculate week end date for calendar query
+  const currentWeekEnd = endOfWeek(currentWeekStart, { weekStartsOn: 0 });
 
   // Use SWR hooks for data fetching with fallback values
   const { data: clientCount = 0, isLoading: isClientLoading } = useSWR<number>('clientCount', fetchClientCount)
@@ -118,63 +110,112 @@ function Dashboard() {
   const { data: todaySessionsCount = 0, isLoading: isTodaySessionsLoading } = useSWR<number>('todaySessionsCount', fetchTodaySessionsCount)
   const { data: totalSessionsCount = 0, isLoading: isTotalSessionsLoading } = useSWR<number>('totalSessionsCount', fetchTotalSessionsCount)
   const { data: recentActivities = [], isLoading: isActivitiesLoading } = useSWR<Activity[]>('recentActivities', fetchRecentActivities)
-  const { data: upcomingSessions = [], isLoading: isSessionsLoading } = useSWR<Session[]>('upcomingSessions', () => 
-    fetchUpcomingSessions().then(data => {
-      console.log('Raw upcoming sessions data:', data);
+
+  // Update the SWR fetcher function for upcoming sessions (future only)
+  const sessionFetcher = async (): Promise<Session[]> => {
+    try {
+      // Get sessions with joined data
+      const sessionsData = await fetchUpcomingSessions();
+      console.log('Raw upcoming sessions data with relations:', sessionsData);
       
-      // Use a simpler transformation approach
-      return data.map(session => {
-        // Extract data with clear fallbacks
-        let caseTitle = "قضية غير معروفة";
-        let courtName = "محكمة غير معروفة";
+      // Transform the sessions data with correct path to client info
+      return sessionsData.map(rawSession => {
+        // Cast to any to avoid TypeScript errors
+        const raw = rawSession as any;
         
-        try {
-          // Handle various possible data structures
-          if (session.cases) {
-            // Handle array of cases
-            if (Array.isArray(session.cases) && session.cases.length > 0) {
-              if ((session.cases[0] as any).title) {
-                caseTitle = (session.cases[0] as any).title;
-              }
-              
-              if ((session.cases[0] as any).courts) {
-                if (Array.isArray((session.cases[0] as any).courts) && (session.cases[0] as any).courts.length > 0) {
-                  courtName = ((session.cases[0] as any).courts[0] as any).name || courtName;
-                } else {
-                  courtName = ((session.cases[0] as any).courts as any).name || courtName;
-                }
-              }
-            } 
-            // Handle direct case object
-            else {
-              caseTitle = (session.cases as any).title || caseTitle;
-              
-              if ((session.cases as any).courts) {
-                if (Array.isArray((session.cases as any).courts) && (session.cases as any).courts.length > 0) {
-                  courtName = ((session.cases as any).courts[0] as any).name || courtName;
-                } else {
-                  courtName = ((session.cases as any).courts as any).name || courtName;
-                }
-              }
-            }
-          }
-        } catch (error) {
-          console.error('Error transforming session data:', error, session);
+        // Extract case title from the case relationship
+        let caseTitle = "جلسة";
+        if (raw.cases && raw.cases.title) {
+          caseTitle = raw.cases.title;
         }
         
-        // Always return a valid structure regardless of input
+        // Extract client name with proper path based on schema
+        let clientName = "عميل";
+        if (raw.cases && raw.cases.clients) {
+          const client = raw.cases.clients;
+          if (client.company_name) {
+            // Use company name for companies
+            clientName = client.company_name;
+          } else if (client.first_name || client.last_name) {
+            // Combine first and last name for individuals
+            clientName = `${client.first_name || ''} ${client.last_name || ''}`.trim();
+          }
+        }
+        
+        // Create a session object
         return {
-          id: session.id,
-          session_date: session.session_date,
+          id: raw.id || '',
+          session_date: raw.session_date || '',
+          session_time: raw.session_time || '',
+          case_id: raw.case_id || '',
           cases: {
             title: caseTitle,
-            courts: {
-              name: courtName
-            }
+            courts: { name: "محكمة" },
+            clients: { name: clientName }
           }
         };
       });
-    })
+    } catch (error) {
+      console.error('Error in sessionFetcher:', error);
+      return [];
+    }
+  };
+
+  // Calendar sessions fetcher (all sessions in date range, not just future)
+  const calendarSessionsFetcher = async (): Promise<Session[]> => {
+    try {
+      // Get calendar sessions with date range
+      const sessionsData = await fetchCalendarSessions(currentWeekStart, currentWeekEnd);
+      console.log('Raw calendar sessions data with relations:', sessionsData);
+      
+      // Transform the sessions data with correct path to client info (same as above)
+      return sessionsData.map(rawSession => {
+        // Cast to any to avoid TypeScript errors
+        const raw = rawSession as any;
+        
+        // Extract case title from the case relationship
+        let caseTitle = "جلسة";
+        if (raw.cases && raw.cases.title) {
+          caseTitle = raw.cases.title;
+        }
+        
+        // Extract client name with proper path based on schema
+        let clientName = "عميل";
+        if (raw.cases && raw.cases.clients) {
+          const client = raw.cases.clients;
+          if (client.company_name) {
+            // Use company name for companies
+            clientName = client.company_name;
+          } else if (client.first_name || client.last_name) {
+            // Combine first and last name for individuals
+            clientName = `${client.first_name || ''} ${client.last_name || ''}`.trim();
+          }
+        }
+        
+        // Create a session object
+        return {
+          id: raw.id || '',
+          session_date: raw.session_date || '',
+          session_time: raw.session_time || '',
+          case_id: raw.case_id || '',
+          cases: {
+            title: caseTitle,
+            courts: { name: "محكمة" },
+            clients: { name: clientName }
+          }
+        };
+      });
+    } catch (error) {
+      console.error('Error in calendarSessionsFetcher:', error);
+      return [];
+    }
+  };
+
+  // Then use these in the SWR hooks
+  const { data: upcomingSessions = [], isLoading: isSessionsLoading } = useSWR<Session[]>('upcomingSessions', sessionFetcher)
+  const { data: calendarSessions = [], isLoading: isCalendarSessionsLoading } = useSWR<Session[]>(
+    ['calendarSessions', currentWeekStart.toISOString(), currentWeekEnd.toISOString()], 
+    calendarSessionsFetcher
   )
 
   // Combined loading state
@@ -193,14 +234,25 @@ function Dashboard() {
   // Generate week days array for calendar display
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(currentWeekStart, i));
   
-  // Convert upcoming sessions to calendar events
-  const calendarEvents: CalendarEvent[] = upcomingSessions.map(session => {
+  // Convert calendar sessions to calendar events
+  const calendarEvents: CalendarEvent[] = calendarSessions.map(session => {
     const sessionDate = session.session_date ? parseISO(session.session_date) : new Date();
+    
+    // Handle session time properly
+    let displayTime = "00:00";
+    
+    if (session.session_time) {
+      displayTime = session.session_time;
+    } else {
+      // Fallback to extracting time from sessionDate
+      displayTime = format(sessionDate, 'HH:mm');
+    }
+    
     return {
       id: session.id,
       title: session.cases?.title || "جلسة",
       date: sessionDate,
-      time: format(sessionDate, 'HH:mm'),
+      time: displayTime,
       type: 'session',
       courtName: session.cases?.courts?.name
     };
@@ -214,10 +266,24 @@ function Dashboard() {
   const nextWeek = () => {
     setCurrentWeekStart(prev => addDays(prev, 7));
   };
-  
+
   // Get events for a specific day
   const getEventsForDay = (day: Date) => {
-    return calendarEvents.filter(event => isSameDay(event.date, day));
+    const checkDate = format(day, 'yyyy-MM-dd');
+    console.log(`Checking events for day: ${checkDate}, Total events: ${calendarEvents.length}`);
+    
+    // Simple date string comparison to avoid timezone issues
+    const filteredEvents = calendarEvents.filter(event => {
+      const eventDate = format(event.date, 'yyyy-MM-dd');
+      const matches = eventDate === checkDate;
+      if (matches) {
+        console.log(`Found event for ${checkDate}: ${event.title}`);
+      }
+      return matches;
+    });
+    
+    console.log(`Found ${filteredEvents.length} events for ${checkDate}`);
+    return filteredEvents;
   };
 
   return (
@@ -385,15 +451,20 @@ function Dashboard() {
               <div className="space-y-4">
                 {displayedSessions.map((session) => {
                   const sessionDate = parseISO(session.session_date);
+                  const caseTitle = session.cases?.title || "جلسة";
+                  const courtName = session.cases?.courts?.name || "محكمة";
+                  const clientName = session.cases?.clients?.name || "عميل غير معروف";
+                  
                   return (
                     <div key={session.id} className="flex items-start space-x-4 rtl:space-x-reverse">
                       <div className="min-w-10 text-center">
                         <p className="text-sm font-medium">{format(sessionDate, 'd MMM', { locale: ar })}</p>
-                        <p className="text-xs">{format(sessionDate, 'HH:mm')}</p>
+                        <p className="text-xs">{session.session_time || format(sessionDate, 'HH:mm')}</p>
                       </div>
                       <div className="space-y-1">
-                        <p className="text-sm font-medium">{session.cases?.title || "جلسة"}</p>
-                        <p className="text-xs text-muted-foreground">{session.cases?.courts?.name || "محكمة"}</p>
+                        <p className="text-sm font-medium">{caseTitle}</p>
+                        <p className="text-xs text-muted-foreground">{courtName}</p>
+                        <p className="text-xs text-primary">{clientName}</p>
                       </div>
                     </div>
                   );
